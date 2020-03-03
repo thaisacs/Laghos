@@ -214,7 +214,7 @@ public:
 
    // The density values, which are stored only at some quadrature points, are
    // projected as a ParGridFunction.
-   void ComputeDensity(ParGridFunction &rho) const;
+   void ComputeDensity(ParFiniteElementSpace&, ParGridFunction &rho) const;
 
    double InternalEnergy(const ParGridFunction &e) const;
    double KineticEnergy(const ParGridFunction &v) const;

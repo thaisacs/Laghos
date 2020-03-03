@@ -79,6 +79,8 @@ void display_banner(ostream & os);
 
 static long GetMaxRssMB();
 
+
+// *****************************************************************************
 int main(int argc, char *argv[])
 {
    // Initialize MPI.
@@ -121,7 +123,7 @@ int main(int argc, char *argv[])
    bool gpu_aware_mpi = false;
    int dev = 0;
    double blast_energy = 0.25;
-   double blast_position[] = {0.0, 0.0, 0.0};
+   //double blast_position[] = {0.0, 0.0, 0.0};
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -233,7 +235,7 @@ int main(int argc, char *argv[])
    }
    // Parallel partitioning of the mesh.
    ParMesh *pmesh = NULL;
-   const int num_tasks = mpi.WorldSize(); int unit;
+   const int num_tasks = mpi.WorldSize(); int unit = 1;
    int *nxyz = new int[dim];
    switch (partition_type)
    {
@@ -377,6 +379,7 @@ int main(int argc, char *argv[])
    H1_FECollection H1FEC(order_v, dim);
    ParFiniteElementSpace L2FESpace(pmesh, &L2FEC);
    ParFiniteElementSpace H1FESpace(pmesh, &H1FEC, pmesh->Dimension());
+   ParFiniteElementSpace H1RhoSpace(pmesh, &H1FEC, 1);
 
    // Boundary conditions: all tests use v.n = 0 on the boundary, and we assume
    // that the boundaries are straight.
@@ -473,9 +476,18 @@ int main(int argc, char *argv[])
    if (problem == 1)
    {
       // For the Sedov test, we use a delta function at the origin.
-      DeltaCoefficient e_coeff(blast_position[0], blast_position[1],
-                               blast_position[2], blast_energy);
-      l2_e.ProjectCoefficient(e_coeff);
+      ParGridFunction l2_e0(&l2_fes), l2_e1(&l2_fes), l2_e2(&l2_fes);
+
+      DeltaCoefficient e0_coeff(0.5, 0.25, 0.0, blast_energy);
+      DeltaCoefficient e1_coeff(0.3125, 0.625, 0.0, blast_energy);
+      DeltaCoefficient e2_coeff(0.6875, 0.6875, 0.0, blast_energy);
+      //SumCoefficient sum(e0_coeff,e1_coeff);
+      l2_e0.ProjectCoefficient(e0_coeff);
+      l2_e1.ProjectCoefficient(e1_coeff);
+      l2_e2.ProjectCoefficient(e2_coeff);
+      l2_e = l2_e0;
+      l2_e += l2_e1;
+      l2_e += l2_e2;
    }
    else
    {
@@ -525,7 +537,7 @@ int main(int argc, char *argv[])
    int  visport   = 19916;
 
    ParGridFunction rho_gf;
-   if (visualization || visit) { oper.ComputeDensity(rho_gf); }
+   if (visualization || visit) { oper.ComputeDensity(H1RhoSpace,rho_gf); }
 
    const double energy_init = oper.InternalEnergy(e_gf) +
                               oper.KineticEnergy(v_gf);
@@ -663,7 +675,12 @@ int main(int argc, char *argv[])
          // another set of GLVis connections (one from each rank):
          MPI_Barrier(pmesh->GetComm());
 
-         if (visualization || visit || gfprint) { oper.ComputeDensity(rho_gf); }
+         if (visualization || visit || gfprint)
+         {
+            if (myid == 0) { printf("\n\033[1;33m[ComputeDensity]\033[m"); }
+            oper.ComputeDensity(H1RhoSpace, rho_gf);
+         }
+
          if (visualization)
          {
             int Wx = 0, Wy = 0; // window position
@@ -706,22 +723,22 @@ int main(int argc, char *argv[])
 
             ofstream mesh_ofs(mesh_name.str().c_str());
             mesh_ofs.precision(8);
-            pmesh->Print(mesh_ofs);
+            pmesh->PrintAsOne(mesh_ofs);
             mesh_ofs.close();
 
             ofstream rho_ofs(rho_name.str().c_str());
             rho_ofs.precision(8);
-            rho_gf.Save(rho_ofs);
+            rho_gf.SaveAsOne(rho_ofs);
             rho_ofs.close();
 
             ofstream v_ofs(v_name.str().c_str());
             v_ofs.precision(8);
-            v_gf.Save(v_ofs);
+            v_gf.SaveAsOne(v_ofs);
             v_ofs.close();
 
             ofstream e_ofs(e_name.str().c_str());
             e_ofs.precision(8);
-            e_gf.Save(e_ofs);
+            e_gf.SaveAsOne(e_ofs);
             e_ofs.close();
          }
       }

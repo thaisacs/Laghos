@@ -660,26 +660,28 @@ void LagrangianHydroOperator::ResetTimeStepEstimate() const
    quad_data.dt_est = numeric_limits<double>::infinity();
 }
 
-void LagrangianHydroOperator::ComputeDensity(ParGridFunction &rho) const
+void LagrangianHydroOperator::ComputeDensity(ParFiniteElementSpace &H1RhoSpace,
+                                             ParGridFunction &rho) const
 {
-   rho.SetSpace(&L2FESpace);
+   rho.SetSpace(&H1RhoSpace);
+   const int h1dofs_cnt = H1RhoSpace.GetFE(0)->GetDof();
 
-   DenseMatrix Mrho(l2dofs_cnt);
-   Vector rhs(l2dofs_cnt), rho_z(l2dofs_cnt);
-   Array<int> dofs(l2dofs_cnt);
+   DenseMatrix Mrho(h1dofs_cnt);
+   Vector rhs(h1dofs_cnt), rho_z(h1dofs_cnt);
+   Array<int> dofs(h1dofs_cnt);
    DenseMatrixInverse inv(&Mrho);
    MassIntegrator mi(&integ_rule);
    DensityIntegrator di(quad_data);
    di.SetIntRule(&integ_rule);
    for (int i = 0; i < nzones; i++)
    {
-      di.AssembleRHSElementVect(*L2FESpace.GetFE(i),
-                                *L2FESpace.GetElementTransformation(i), rhs);
-      mi.AssembleElementMatrix(*L2FESpace.GetFE(i),
-                               *L2FESpace.GetElementTransformation(i), Mrho);
+      di.AssembleRHSElementVect(*H1RhoSpace.GetFE(i),
+                                *H1RhoSpace.GetElementTransformation(i), rhs);
+      mi.AssembleElementMatrix(*H1RhoSpace.GetFE(i),
+                               *H1RhoSpace.GetElementTransformation(i), Mrho);
       inv.Factor();
       inv.Mult(rhs, rho_z);
-      L2FESpace.GetElementDofs(i, dofs);
+      rho.ParFESpace()->GetElementDofs(i, dofs);
       rho.SetSubVector(dofs, rho_z);
    }
 }
