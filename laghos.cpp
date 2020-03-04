@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
    bool gpu_aware_mpi = false;
    int dev = 0;
    double blast_energy = 0.25;
-   //double blast_position[] = {0.0, 0.0, 0.0};
+   int blast_positions = 0;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -197,6 +197,7 @@ int main(int argc, char *argv[])
    args.AddOption(&gpu_aware_mpi, "-gam", "--gpu-aware-mpi", "-no-gam",
                   "--no-gpu-aware-mpi", "Enable GPU aware MPI communications.");
    args.AddOption(&dev, "-dev", "--dev", "GPU device to use.");
+   args.AddOption(&blast_positions, "-bp", "--blast_positions", "Initial Cond.");
    args.Parse();
    if (!args.Good())
    {
@@ -478,13 +479,27 @@ int main(int argc, char *argv[])
       // For the Sedov test, we use a delta function at the origin.
       ParGridFunction l2_e0(&l2_fes), l2_e1(&l2_fes), l2_e2(&l2_fes);
 
-      DeltaCoefficient e0_coeff(0.5, 0.25, 0.0, blast_energy);
-      DeltaCoefficient e1_coeff(0.3125, 0.625, 0.0, blast_energy);
-      DeltaCoefficient e2_coeff(0.6875, 0.6875, 0.0, blast_energy);
-      //SumCoefficient sum(e0_coeff,e1_coeff);
-      l2_e0.ProjectCoefficient(e0_coeff);
-      l2_e1.ProjectCoefficient(e1_coeff);
-      l2_e2.ProjectCoefficient(e2_coeff);
+      if (blast_positions == 1)
+      {
+         DeltaCoefficient e0_coeff(0.5, 0.25, 0.0, blast_energy);
+         DeltaCoefficient e1_coeff(0.3125, 0.625, 0.0, blast_energy);
+         DeltaCoefficient e2_coeff(0.6875, 0.6875, 0.0, blast_energy);
+         //SumCoefficient sum(e0_coeff,e1_coeff);
+         l2_e0.ProjectCoefficient(e0_coeff);
+         l2_e1.ProjectCoefficient(e1_coeff);
+         l2_e2.ProjectCoefficient(e2_coeff);
+      }
+
+      if (blast_positions == 2)
+      {
+         DeltaCoefficient e0_coeff(0.3125, 0.3125, 0.0, blast_energy);
+         DeltaCoefficient e1_coeff(0.625, 0.375, 0.0, blast_energy);
+         DeltaCoefficient e2_coeff(0.5625, 0.625, 0.0, blast_energy);
+         //SumCoefficient sum(e0_coeff,e1_coeff);
+         l2_e0.ProjectCoefficient(e0_coeff);
+         l2_e1.ProjectCoefficient(e1_coeff);
+         l2_e2.ProjectCoefficient(e2_coeff);
+      }
       l2_e = l2_e0;
       l2_e += l2_e1;
       l2_e += l2_e2;
