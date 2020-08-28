@@ -62,6 +62,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "laghos_solver.hpp"
+#include "riemann1D.hpp"
 
 using std::cout;
 using std::endl;
@@ -514,6 +515,7 @@ int main(int argc, char *argv[])
       l2_e.ProjectCoefficient(e_coeff);
    }
    e_gf.ProjectGridFunction(l2_e);
+
    // Sync the data location of e_gf with its base, S
    e_gf.SyncAliasMemory(S);
 
@@ -809,6 +811,23 @@ int main(int argc, char *argv[])
                    error_l2  = v_gf.ComputeL2Error(v_coeff);
       if (mpi.Root())
       {
+         cout << "L_inf  error: " << error_max << endl
+              << "L_1    error: " << error_l1 << endl
+              << "L_2    error: " << error_l2 << endl;
+      }
+   }
+
+   if (problem == 2)
+   {
+      riemann1D::ExactEnergyCoefficient e_coeff;
+      e_coeff.SetTime(t_final);
+
+      const double error_max = e_gf.ComputeMaxError(e_coeff),
+                   error_l1  = e_gf.ComputeL1Error(e_coeff),
+                   error_l2  = e_gf.ComputeL2Error(e_coeff);
+      if (mpi.Root())
+      {
+         cout << "NE = " << pmesh->GetGlobalNE() << endl;
          cout << "L_inf  error: " << error_max << endl
               << "L_1    error: " << error_l1 << endl
               << "L_2    error: " << error_l2 << endl;
