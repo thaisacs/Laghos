@@ -200,6 +200,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    L2GTVSize(L2.GlobalTrueVSize()),
    block_offsets(4),
    x_gf(&H1),
+   p_gf(&L2),
    ess_tdofs(ess_tdofs),
    dim(pmesh->Dimension()),
    NE(pmesh->GetNE()),
@@ -220,7 +221,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    qdata(dim, NE, ir.GetNPoints()),
    qdata_is_current(false),
    forcemat_is_assembled(false),
-   Force(&L2, &H1),
+   Force(&H1, &L2),
    ForcePA(nullptr), VMassPA(nullptr), EMassPA(nullptr),
    VMassPA_Jprec(nullptr),
    CG_VMass(H1.GetParMesh()->GetComm()),
@@ -353,7 +354,10 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    {
       ForceIntegrator *fi = new ForceIntegrator(qdata);
       fi->SetIntRule(&ir);
+      p_gf = 0.0;
+      FaceForceIntegrator *ffi = new FaceForceIntegrator(p_gf);
       Force.AddDomainIntegrator(fi);
+      Force.AddTraceFaceIntegrator(ffi);
       // Make a dummy assembly to figure out the sparsity.
       Force.Assemble(0);
       Force.Finalize(0);
@@ -435,7 +439,8 @@ void LagrangianHydroOperator::SolveVelocity(const Vector &S,
    else
    {
       timer.sw_force.Start();
-      Force.Mult(one, rhs);
+      // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
+      Force.MultTranspose(one, rhs);
       timer.sw_force.Stop();
       rhs.Neg();
 
@@ -500,7 +505,8 @@ void LagrangianHydroOperator::SolveEnergy(const Vector &S, const Vector &v,
    else // not p_assembly
    {
       timer.sw_force.Start();
-      Force.MultTranspose(v, e_rhs);
+      // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
+      Force.Mult(v, e_rhs);
       timer.sw_force.Stop();
       if (e_source) { e_rhs += *e_source; }
       Vector loc_rhs(l2dofs_cnt), loc_de(l2dofs_cnt);

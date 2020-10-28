@@ -109,6 +109,8 @@ protected:
    Array<int> block_offsets;
    // Reference to the current mesh configuration.
    mutable ParGridFunction x_gf;
+   // Pressure as a finite element function.
+   ParGridFunction p_gf;
    const Array<int> &ess_tdofs;
    const int dim, NE, l2dofs_cnt, h1dofs_cnt, source_type;
    const double cfl;

@@ -48,9 +48,9 @@ void ForceIntegrator::AssembleElementMatrix2(const FiniteElement &trial_fe,
    const int e = Tr.ElementNo;
    const int nqp = IntRule->GetNPoints();
    const int dim = trial_fe.GetDim();
-   const int h1dofs_cnt = test_fe.GetDof();
-   const int l2dofs_cnt = trial_fe.GetDof();
-   elmat.SetSize(h1dofs_cnt*dim, l2dofs_cnt);
+   const int h1dofs_cnt = trial_fe.GetDof();
+   const int l2dofs_cnt = test_fe.GetDof();
+   elmat.SetSize(l2dofs_cnt, h1dofs_cnt*dim);
    elmat = 0.0;
    DenseMatrix vshape(h1dofs_cnt, dim), loc_force(h1dofs_cnt, dim);
    Vector shape(l2dofs_cnt), Vloc_force(loc_force.Data(), h1dofs_cnt*dim);
@@ -58,7 +58,7 @@ void ForceIntegrator::AssembleElementMatrix2(const FiniteElement &trial_fe,
    {
       const IntegrationPoint &ip = IntRule->IntPoint(q);
       // Form stress:grad_shape at the current point.
-      test_fe.CalcDShape(ip, vshape);
+      trial_fe.CalcDShape(ip, vshape);
       for (int i = 0; i < h1dofs_cnt; i++)
       {
          for (int vd = 0; vd < dim; vd++) // Velocity components.
@@ -72,8 +72,8 @@ void ForceIntegrator::AssembleElementMatrix2(const FiniteElement &trial_fe,
             }
          }
       }
-      trial_fe.CalcShape(ip, shape);
-      AddMultVWt(Vloc_force, shape, elmat);
+      test_fe.CalcShape(ip, shape);
+      AddMultVWt(shape, Vloc_force, elmat);
    }
 }
 
@@ -123,29 +123,34 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
       // The normal includes the scaling.
       if (dim == 1) { nor(0) = 2*eip1.x - 1.0; }
       else { CalcOrtho(Trans.Jacobian(), nor); }
+      nor *= ip.weight;
 
-      nor *= ip.weight *
-             (p.GetValue(*Trans.Elem1, eip1) - p.GetValue(*Trans.Elem2, eip2));
-
-      // Shape functions - on the face (H1) and in the 1st element (L2).
+      // Shape functions on the face (H1); same for both elements.
       trial_face_fe.CalcShape(ip, h1_shape_face);
-      test_fe1.CalcShape(eip1, l2_shape);
 
       // 1st element.
-      for (int i = 0; i < l2dofs_cnt; i++)
       {
-         for (int j = 0; j < h1dofs_cnt_face; j++)
+         // Pressure from the 1st element.
+         const double p1 = p.GetValue(*Trans.Elem1, eip1);
+         // L2 shape functions on the 1st element.
+         test_fe1.CalcShape(eip1, l2_shape);
+         for (int i = 0; i < l2dofs_cnt; i++)
          {
-            for (int d = 0; d < dim; d++)
+            for (int j = 0; j < h1dofs_cnt_face; j++)
             {
-               elmat(i, d*h1dofs_cnt_face + j) =
-                     l2_shape(i) * h1_shape_face(j) * nor(d);
+               for (int d = 0; d < dim; d++)
+               {
+                  elmat(i, d*h1dofs_cnt_face + j) +=
+                        p1 * l2_shape(i) * h1_shape_face(j) * nor(d);
+               }
             }
          }
       }
-      // 2nd element.
+      // 2nd element if there is such (subtracting from the 1st).
       if (Trans.Elem2No >= 0)
       {
+         // Pressure from the 2nd element.
+         const double p2 = p.GetValue(*Trans.Elem2, eip2);
          // L2 shape functions on the 2nd element.
          test_fe1.CalcShape(eip2, l2_shape);
          for (int i = 0; i < l2dofs_cnt; i++)
@@ -154,13 +159,15 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
             {
                for (int d = 0; d < dim; d++)
                {
-                  elmat(l2dofs_cnt + i, d*h1dofs_cnt_face + j) =
-                        l2_shape(i) * h1_shape_face(j) * nor(d);
+                  elmat(l2dofs_cnt + i, d*h1dofs_cnt_face + j) -=
+                        p2 * l2_shape(i) * h1_shape_face(j) * nor(d);
                }
             }
          }
       }
    }
+   // Should be opposite to the volumetric terms, which are assumed with `+`.
+   elmat.Neg();
 }
 
 MassPAOperator::MassPAOperator(ParFiniteElementSpace &pfes,

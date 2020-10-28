@@ -77,7 +77,8 @@ public:
                                        Vector &elvect);
 };
 
-// Performs full assembly for the force operator.
+// Performs full assembly for the force operator:
+// F_ij = int_zone [ (sigma:h1_shape_j) l2_shape_i ].
 class ForceIntegrator : public BilinearFormIntegrator
 {
 private:
@@ -90,6 +91,8 @@ public:
                                        DenseMatrix &elmat);
 };
 
+// Performs full assemble for the force face terms:
+// F_face_ij = - int_face [ (p1-p2) n1 h1_shape_j l2_shape_i].
 class FaceForceIntegrator : public BilinearFormIntegrator
 {
 private:
