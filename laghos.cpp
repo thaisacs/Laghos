@@ -827,7 +827,7 @@ int main(int argc, char *argv[])
                    error_l2  = e_gf.ComputeL2Error(e_coeff);
       if (mpi.Root())
       {
-         cout << "NE = " << pmesh->GetGlobalNE() << endl;
+         cout << "Tot elements: " << mesh_NE << endl;
          cout << "L_inf  error: " << error_max << endl
               << "L_1    error: " << error_l1 << endl
               << "L_2    error: " << error_l2 << endl;

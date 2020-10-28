@@ -90,6 +90,23 @@ public:
                                        DenseMatrix &elmat);
 };
 
+class FaceForceIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector face_shape, shape1, shape2;
+   ParGridFunction &p;
+
+  public:
+   FaceForceIntegrator(ParGridFunction &p_gf) : p(p_gf) { }
+
+   using BilinearFormIntegrator::AssembleFaceMatrix;
+   void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                           const FiniteElement &test_fe1,
+                           const FiniteElement &test_fe2,
+                           FaceElementTransformations &Trans,
+                           DenseMatrix &elmat);
+};
+
 // Performs partial assembly for the force operator.
 class ForcePAOperator : public Operator
 {

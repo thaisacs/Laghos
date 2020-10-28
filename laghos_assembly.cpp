@@ -77,6 +77,69 @@ void ForceIntegrator::AssembleElementMatrix2(const FiniteElement &trial_fe,
    }
 }
 
+void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                                             const FiniteElement &test_fe1,
+                                             const FiniteElement &test_fe2,
+                                             FaceElementTransformations &Trans,
+                                             DenseMatrix &elmat)
+{
+   const int face_h1dofs_cnt = trial_face_fe.GetDof();
+   const int h1dofs_cnt = test_fe1.GetDof();
+   const int l2dofs_cnt = test_fe2.GetDof();
+
+   // TODO Integration Rule.
+   const int nqp = IntRule->GetNPoints();
+
+   const int face_ndof = trial_face_fe.GetDof();
+   const int ndof1 = test_fe1.GetDof();
+   const int dim = test_fe1.GetDim();
+   int ndof2;
+
+   if (Trans.Elem2No >= 0)
+   {
+      ndof2 = test_fe2.GetDof();
+      shape2.SetSize(ndof2);
+   }
+   else
+   {
+      ndof2 = 0;
+   }
+
+   Vector nor(dim);
+
+   elmat.SetSize(ndof1 + ndof2, face_ndof);
+   elmat = 0.0;
+
+   for (int p = 0; p < ir->GetNPoints(); p++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(p);
+
+      // Set the integration point in the face and the neighboring elements
+      Trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring elements' integration points
+      // Note: eip2 will only contain valid data if Elem2 exists
+      const IntegrationPoint &eip1 = Trans.GetElement1IntPoint();
+      const IntegrationPoint &eip2 = Trans.GetElement2IntPoint();
+
+      // The normal includes the scaling.
+      if (dim == 1) { nor(0) = 2*eip1.x - 1.0; }
+      else { CalcOrtho(Trans.Jacobian(), nor); }
+
+
+      double w = ip.weight * nor *
+                 (p.GetValue(Trans.Elem1, eip1) - p.GetValue(Trans.Elem2, eip2));
+
+      for (i = 0; i < ndof1; i++)
+      {
+         for (j = 0; j < face_ndof; j++)
+         {
+            elmat(i, j) += shape1(i) * face_shape(j);
+         }
+      }
+   }
+}
+
 MassPAOperator::MassPAOperator(ParFiniteElementSpace &pfes,
                                const IntegrationRule &ir,
                                Coefficient &Q) :
