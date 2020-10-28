@@ -93,7 +93,7 @@ public:
 class FaceForceIntegrator : public BilinearFormIntegrator
 {
 private:
-   Vector face_shape, shape1, shape2;
+   Vector h1_shape_face, l2_shape;
    ParGridFunction &p;
 
   public:

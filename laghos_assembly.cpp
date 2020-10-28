@@ -83,36 +83,34 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
                                              FaceElementTransformations &Trans,
                                              DenseMatrix &elmat)
 {
-   const int face_h1dofs_cnt = trial_face_fe.GetDof();
-   const int h1dofs_cnt = test_fe1.GetDof();
-   const int l2dofs_cnt = test_fe2.GetDof();
-
-   // TODO Integration Rule.
-   const int nqp = IntRule->GetNPoints();
-
-   const int face_ndof = trial_face_fe.GetDof();
-   const int ndof1 = test_fe1.GetDof();
+   const int h1dofs_cnt_face = trial_face_fe.GetDof();
+   const int l2dofs_cnt = test_fe1.GetDof();
    const int dim = test_fe1.GetDim();
-   int ndof2;
 
-   if (Trans.Elem2No >= 0)
+   // TODO ignore non-marked faces.
+
+   if (Trans.Elem2No < 0)
    {
-      ndof2 = test_fe2.GetDof();
-      shape2.SetSize(ndof2);
+      // This case should take care of shared (MPI) faces. They will get
+      // processed by both MPI tasks.
+      elmat.SetSize(l2dofs_cnt, h1dofs_cnt_face * dim);
    }
-   else
-   {
-      ndof2 = 0;
-   }
+   elmat.SetSize(l2dofs_cnt * 2, h1dofs_cnt_face * dim);
+   elmat = 0.0;
+
+   h1_shape_face.SetSize(h1dofs_cnt_face);
+   l2_shape.SetSize(l2dofs_cnt);
+
+   const int ir_order =
+      test_fe1.GetOrder() + trial_face_fe.GetOrder() + Trans.OrderW();
+   const IntegrationRule *ir = &IntRules.Get(Trans.GetGeometryType(), ir_order);
+   const int nqp_face = ir->GetNPoints();
 
    Vector nor(dim);
 
-   elmat.SetSize(ndof1 + ndof2, face_ndof);
-   elmat = 0.0;
-
-   for (int p = 0; p < ir->GetNPoints(); p++)
+   for (int q = 0; q  < nqp_face; q++)
    {
-      const IntegrationPoint &ip = ir->IntPoint(p);
+      const IntegrationPoint &ip = ir->IntPoint(q);
 
       // Set the integration point in the face and the neighboring elements
       Trans.SetAllIntPoints(&ip);
@@ -126,15 +124,40 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
       if (dim == 1) { nor(0) = 2*eip1.x - 1.0; }
       else { CalcOrtho(Trans.Jacobian(), nor); }
 
+      nor *= ip.weight *
+             (p.GetValue(*Trans.Elem1, eip1) - p.GetValue(*Trans.Elem2, eip2));
 
-      double w = ip.weight * nor *
-                 (p.GetValue(Trans.Elem1, eip1) - p.GetValue(Trans.Elem2, eip2));
+      // Shape functions - on the face (H1) and in the 1st element (L2).
+      trial_face_fe.CalcShape(ip, h1_shape_face);
+      test_fe1.CalcShape(eip1, l2_shape);
 
-      for (i = 0; i < ndof1; i++)
+      // 1st element.
+      for (int i = 0; i < l2dofs_cnt; i++)
       {
-         for (j = 0; j < face_ndof; j++)
+         for (int j = 0; j < h1dofs_cnt_face; j++)
          {
-            elmat(i, j) += shape1(i) * face_shape(j);
+            for (int d = 0; d < dim; d++)
+            {
+               elmat(i, d*h1dofs_cnt_face + j) =
+                     l2_shape(i) * h1_shape_face(j) * nor(d);
+            }
+         }
+      }
+      // 2nd element.
+      if (Trans.Elem2No >= 0)
+      {
+         // L2 shape functions on the 2nd element.
+         test_fe1.CalcShape(eip2, l2_shape);
+         for (int i = 0; i < l2dofs_cnt; i++)
+         {
+            for (int j = 0; j < h1dofs_cnt_face; j++)
+            {
+               for (int d = 0; d < dim; d++)
+               {
+                  elmat(l2dofs_cnt + i, d*h1dofs_cnt_face + j) =
+                        l2_shape(i) * h1_shape_face(j) * nor(d);
+               }
+            }
          }
       }
    }
