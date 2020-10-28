@@ -55,6 +55,25 @@ struct TimingData
       L2dof(l2d), H1iter(0), L2iter(0), quad_tstep(0) { }
 };
 
+class PressureFunction
+{
+private:
+   L2_FECollection p_fec;
+   ParFiniteElementSpace p_fes;
+   ParGridFunction p;
+   // Stores rho0 * det(J0)  at the pressure GF's nodes.
+   Vector rho0DetJ0;
+   Coefficient &gamma_coeff;
+
+public:
+   PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
+                    int e_order, Coefficient &gc);
+
+   void UpdatePressure(const Vector &rho0DetJ0, const ParGridFunction &e);
+
+   const ParGridFunction &GetPressure() const { return p; }
+};
+
 class QUpdate
 {
 private:
@@ -109,8 +128,7 @@ protected:
    Array<int> block_offsets;
    // Reference to the current mesh configuration.
    mutable ParGridFunction x_gf;
-   // Pressure as a finite element function.
-   ParGridFunction p_gf;
+   PressureFunction p_func;
    const Array<int> &ess_tdofs;
    const int dim, NE, l2dofs_cnt, h1dofs_cnt, source_type;
    const double cfl;

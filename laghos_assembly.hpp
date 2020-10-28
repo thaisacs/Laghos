@@ -97,10 +97,10 @@ class FaceForceIntegrator : public BilinearFormIntegrator
 {
 private:
    Vector h1_shape_face, l2_shape;
-   ParGridFunction &p;
+   const ParGridFunction &p;
 
   public:
-   FaceForceIntegrator(ParGridFunction &p_gf) : p(p_gf) { }
+   FaceForceIntegrator(const ParGridFunction &p_gf) : p(p_gf) { }
 
    using BilinearFormIntegrator::AssembleFaceMatrix;
    void AssembleFaceMatrix(const FiniteElement &trial_face_fe,

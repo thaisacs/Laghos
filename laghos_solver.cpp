@@ -112,7 +112,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    L2GTVSize(L2.GlobalTrueVSize()),
    block_offsets(4),
    x_gf(&H1),
-   p_gf(&L2),
+   p_func(*pmesh, rho0_gf, L2.GetOrder(0), gamma_coeff),
    ess_tdofs(ess_tdofs),
    dim(pmesh->Dimension()),
    NE(pmesh->GetNE()),
@@ -266,8 +266,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    {
       ForceIntegrator *fi = new ForceIntegrator(qdata);
       fi->SetIntRule(&ir);
-      p_gf = 0.0;
-      FaceForceIntegrator *ffi = new FaceForceIntegrator(p_gf);
+      FaceForceIntegrator *ffi = new FaceForceIntegrator(p_func.GetPressure());
       Force.AddDomainIntegrator(fi);
       Force.AddTraceFaceIntegrator(ffi);
       // Make a dummy assembly to figure out the sparsity.
@@ -766,6 +765,57 @@ void LagrangianHydroOperator::UpdateQuadratureData(const Vector &S) const
    delete [] Jpr_b;
    timer.sw_qdata.Stop();
    timer.quad_tstep += NE;
+}
+
+PressureFunction::PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
+                                   int e_order, Coefficient &gc)
+   : p_fec(2 * e_order, pmesh.Dimension(), BasisType::Positive),
+     p_fes(&pmesh, &p_fec), p(&p_fes),
+     rho0DetJ0(p.Size()), gamma_coeff(gc)
+{
+   const int NE = pmesh.GetNE();
+   const int nqp = rho0DetJ0.Size() / NE;
+
+   Vector rho_vals(nqp);
+   for (int i = 0; i < NE; i++)
+   {
+      // The points (and their numbering) coincide with the nodes of p.
+      const IntegrationRule &ir = p_fes.GetFE(i)->GetNodes();
+      ElementTransformation &Tr = *p_fes.GetElementTransformation(i);
+
+      rho0.GetValues(Tr, ir, rho_vals);
+      for (int q = 0; q < nqp; q++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(q);
+         Tr.SetIntPoint(&ip);
+         rho0DetJ0(i * nqp + q) = Tr.Weight() * rho_vals(q);
+      }
+   }
+}
+
+void PressureFunction::UpdatePressure(const Vector &rho0DetJ0,
+                                      const ParGridFunction &e)
+{
+   const int NE = e.ParFESpace()->GetParMesh()->GetNE();
+   Vector e_vals;
+
+   for (int i = 0; i < NE; i++)
+   {
+      // The points (and their numbering) coincide with the nodes of p.
+      const IntegrationRule &ir = p_fes.GetFE(i)->GetNodes();
+      const int nqp = ir.GetNPoints();
+      ElementTransformation &Tr = *p_fes.GetElementTransformation(i);
+
+      e.GetValues(Tr, ir, e_vals);
+
+      for (int q = 0; q < ir.GetNPoints(); q++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(q);
+         Tr.SetIntPoint(&ip);
+         double rho = rho0DetJ0(i * nqp + q) / Tr.Weight();
+         p(i * nqp + q) = (gamma_coeff.Eval(Tr, ip) - 1.0) * rho * e_vals(q);
+      }
+   }
 }
 
 static void Rho0DetJ0Vol(const int dim, const int NE,
