@@ -255,14 +255,14 @@ The latter produces the following specific internal energy plot (notice the `-vi
 To make sure the results are correct, we tabulate reference final iterations
 (`step`), time steps (`dt`) and energies (`|e|`) for the runs listed below:
 
-1. `mpirun -np 8 ./laghos -p 0 -dim 2 -rs 3 -tf 0.75 -pa`
-2. `mpirun -np 8 ./laghos -p 0 -dim 3 -rs 1 -tf 0.75 -pa`
-3. `mpirun -np 8 ./laghos -p 1 -dim 2 -rs 3 -tf 0.8 -pa`
-4. `mpirun -np 8 ./laghos -p 1 -dim 3 -rs 2 -tf 0.6 -pa`
-5. `mpirun -np 8 ./laghos -p 2 -dim 1 -rs 5 -tf 0.2 -fa`
-6. `mpirun -np 8 ./laghos -p 3 -m data/rectangle01_quad.mesh -rs 2 -tf 3.0 -pa`
-7. `mpirun -np 8 ./laghos -p 3 -m data/box01_hex.mesh -rs 1 -tf 3.0 -pa`
-8. `mpirun -np 8 ./laghos -p 4 -m data/square_gresho.mesh -rs 3 -ok 3 -ot 2 -tf 0.62831853 -s 7 -pa`
+1. `mpirun -np 6 ./laghos -p 0 -dim 2 -rs 3 -tf 0.75 -pa`
+2. `mpirun -np 6 ./laghos -p 0 -dim 3 -rs 1 -tf 0.75 -pa`
+3. `mpirun -np 6 ./laghos -p 1 -dim 2 -rs 3 -tf 0.8 -pa`
+4. `mpirun -np 6 ./laghos -p 1 -dim 3 -rs 2 -tf 0.6 -pa`
+5. `mpirun -np 6 ./laghos -p 2 -dim 1 -rs 5 -tf 0.2 -fa`
+6. `mpirun -np 6 ./laghos -p 3 -m data/rectangle01_quad.mesh -rs 2 -tf 3.0 -pa`
+7. `mpirun -np 6 ./laghos -p 3 -m data/box01_hex.mesh -rs 1 -tf 3.0 -pa`
+8. `mpirun -np 6 ./laghos -p 4 -m data/square_gresho.mesh -rs 3 -ok 3 -ot 2 -tf 0.62831853 -s 7 -pa`
 
 | `run` | `step` | `dt` | `e` |
 | ----- | ------ | ---- | --- |

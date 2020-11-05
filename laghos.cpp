@@ -551,7 +551,7 @@ int main(int argc, char *argv[])
                                                 cg_tol, cg_max_iter, ftz_tol,
                                                 order_q);
 
-   socketstream vis_rho, vis_v, vis_e;
+   socketstream vis_rho, vis_v, vis_e, vis_p;
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -568,6 +568,7 @@ int main(int argc, char *argv[])
       vis_rho.precision(8);
       vis_v.precision(8);
       vis_e.precision(8);
+      vis_p.precision(8);
       int Wx = 0, Wy = 0; // window position
       const int Ww = 350, Wh = 350; // window size
       int offx = Ww+10; // window offsets
@@ -582,6 +583,10 @@ int main(int argc, char *argv[])
       Wx += offx;
       hydrodynamics::VisualizeField(vis_e, vishost, visport, e_gf,
                                     "Specific Internal Energy", Wx, Wy, Ww, Wh);
+      Wx += offx;
+      hydrodynamics::VisualizeField(vis_p, vishost, visport,
+                                    hydro.GetPressure(e_gf),
+                                    "Pressure", Wx, Wy, Ww,Wh);
    }
 
    // Save data for VisIt visualization.
@@ -705,6 +710,10 @@ int main(int argc, char *argv[])
                                           "Specific Internal Energy",
                                           Wx, Wy, Ww,Wh);
             Wx += offx;
+            hydrodynamics::VisualizeField(vis_p, vishost, visport,
+                                          hydro.GetPressure(e_gf),
+                                          "Pressure",
+                                          Wx, Wy, Ww,Wh);
          }
 
          if (visit)

@@ -302,6 +302,11 @@ void LagrangianHydroOperator::Mult(const Vector &S, Vector &dS_dt) const
    ParGridFunction dx;
    dx.MakeRef(&H1, dS_dt, 0);
    dx = v;
+
+   ParGridFunction e;
+   e.MakeRef(&L2, *sptr, H1Vsize*2);
+   p_func.UpdatePressure(e);
+
    SolveVelocity(S, dS_dt);
    SolveEnergy(S, v, dS_dt);
    qdata_is_current = false;
@@ -767,12 +772,24 @@ void LagrangianHydroOperator::UpdateQuadratureData(const Vector &S) const
    timer.quad_tstep += NE;
 }
 
+void LagrangianHydroOperator::AssembleForceMatrix() const
+{
+   if (forcemat_is_assembled || p_assembly) { return; }
+   Force = 0.0;
+   timer.sw_force.Start();
+   Force.Assemble();
+   timer.sw_force.Stop();
+   forcemat_is_assembled = true;
+}
+
 PressureFunction::PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
                                    int e_order, Coefficient &gc)
    : p_fec(2 * e_order, pmesh.Dimension(), BasisType::Positive),
      p_fes(&pmesh, &p_fec), p(&p_fes),
      rho0DetJ0(p.Size()), gamma_coeff(gc)
 {
+   p = 0.0;
+
    const int NE = pmesh.GetNE();
    const int nqp = rho0DetJ0.Size() / NE;
 
@@ -793,8 +810,7 @@ PressureFunction::PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
    }
 }
 
-void PressureFunction::UpdatePressure(const Vector &rho0DetJ0,
-                                      const ParGridFunction &e)
+void PressureFunction::UpdatePressure(const ParGridFunction &e)
 {
    const int NE = e.ParFESpace()->GetParMesh()->GetNE();
    Vector e_vals;
@@ -1166,16 +1182,6 @@ void QUpdate::UpdateQuadratureData(const Vector &S, QuadratureData &qdata)
    qdata.dt_est = q_dt_est.Min();
    timer->sw_qdata.Stop();
    timer->quad_tstep += NE;
-}
-
-void LagrangianHydroOperator::AssembleForceMatrix() const
-{
-   if (forcemat_is_assembled || p_assembly) { return; }
-   Force = 0.0;
-   timer.sw_force.Start();
-   Force.Assemble();
-   timer.sw_force.Stop();
-   forcemat_is_assembled = true;
 }
 
 } // namespace hydrodynamics

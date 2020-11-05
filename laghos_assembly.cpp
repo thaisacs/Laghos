@@ -110,30 +110,33 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
 
    for (int q = 0; q  < nqp_face; q++)
    {
-      const IntegrationPoint &ip = ir->IntPoint(q);
+      const IntegrationPoint &ip_f = ir->IntPoint(q);
 
       // Set the integration point in the face and the neighboring elements
-      Trans.SetAllIntPoints(&ip);
+      Trans.SetAllIntPoints(&ip_f);
 
       // Access the neighboring elements' integration points
       // Note: eip2 will only contain valid data if Elem2 exists
-      const IntegrationPoint &eip1 = Trans.GetElement1IntPoint();
-      const IntegrationPoint &eip2 = Trans.GetElement2IntPoint();
+      const IntegrationPoint &ip_e1 = Trans.GetElement1IntPoint();
+      const IntegrationPoint &ip_e2 = Trans.GetElement2IntPoint();
 
       // The normal includes the scaling.
-      if (dim == 1) { nor(0) = 2*eip1.x - 1.0; }
+      if (dim == 1)
+      {
+         nor(0) = (2*ip_e1.x - 1.0 ) * Trans.Weight();
+      }
       else { CalcOrtho(Trans.Jacobian(), nor); }
-      nor *= ip.weight;
+      nor *= ip_f.weight;
 
       // Shape functions on the face (H1); same for both elements.
-      trial_face_fe.CalcShape(ip, h1_shape_face);
+      trial_face_fe.CalcShape(ip_f, h1_shape_face);
 
       // 1st element.
       {
          // Pressure from the 1st element.
-         const double p1 = p.GetValue(*Trans.Elem1, eip1);
+         const double p1 = p.GetValue(*Trans.Elem1, ip_e1);
          // L2 shape functions on the 1st element.
-         test_fe1.CalcShape(eip1, l2_shape);
+         test_fe1.CalcShape(ip_e1, l2_shape);
          for (int i = 0; i < l2dofs_cnt; i++)
          {
             for (int j = 0; j < h1dofs_cnt_face; j++)
@@ -150,9 +153,9 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
       if (Trans.Elem2No >= 0)
       {
          // Pressure from the 2nd element.
-         const double p2 = p.GetValue(*Trans.Elem2, eip2);
+         const double p2 = p.GetValue(*Trans.Elem2, ip_e2);
          // L2 shape functions on the 2nd element.
-         test_fe1.CalcShape(eip2, l2_shape);
+         test_fe2.CalcShape(ip_e2, l2_shape);
          for (int i = 0; i < l2dofs_cnt; i++)
          {
             for (int j = 0; j < h1dofs_cnt_face; j++)

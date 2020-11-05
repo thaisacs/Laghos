@@ -69,9 +69,9 @@ public:
    PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
                     int e_order, Coefficient &gc);
 
-   void UpdatePressure(const Vector &rho0DetJ0, const ParGridFunction &e);
+   void UpdatePressure(const ParGridFunction &e);
 
-   const ParGridFunction &GetPressure() const { return p; }
+   ParGridFunction &GetPressure() { return p; }
 };
 
 class QUpdate
@@ -128,7 +128,7 @@ protected:
    Array<int> block_offsets;
    // Reference to the current mesh configuration.
    mutable ParGridFunction x_gf;
-   PressureFunction p_func;
+   mutable PressureFunction p_func;
    const Array<int> &ess_tdofs;
    const int dim, NE, l2dofs_cnt, h1dofs_cnt, source_type;
    const double cfl;
@@ -216,6 +216,11 @@ public:
    // The density values, which are stored only at some quadrature points,
    // are projected as a ParGridFunction.
    void ComputeDensity(ParGridFunction &rho) const;
+   ParGridFunction &GetPressure(const ParGridFunction &e)
+   {
+      p_func.UpdatePressure(e);
+      return p_func.GetPressure();
+   }
    double InternalEnergy(const ParGridFunction &e) const;
    double KineticEnergy(const ParGridFunction &v) const;
 
