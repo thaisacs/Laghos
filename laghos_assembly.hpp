@@ -100,6 +100,11 @@ public:
    VelocityInterfaceIntegrator(const ParGridFunction &p_gf) : p(p_gf) { }
 
    using LinearFormIntegrator::AssembleRHSElementVect;
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       ElementTransformation &Tr,
+                                       Vector &elvect)
+   { MFEM_ABORT("should not be used"); }
+
    virtual void AssembleRHSFaceVect(const FiniteElement &el1,
                                     const FiniteElement &el_2,
                                     FaceElementTransformations &Tr,
@@ -159,6 +164,7 @@ private:
 public:
    MassPAOperator(ParFiniteElementSpace&, const IntegrationRule&, Coefficient&);
    virtual void Mult(const Vector&, Vector&) const;
+   void MultFull(const Vector &x, Vector &y) const { mass->Mult(x, y); }
    virtual void SetEssentialTrueDofs(Array<int>&);
    virtual void EliminateRHS(Vector&) const;
    const ParBilinearForm &GetBF() const { return pabf; }
