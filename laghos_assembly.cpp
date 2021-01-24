@@ -77,6 +77,65 @@ void ForceIntegrator::AssembleElementMatrix2(const FiniteElement &trial_fe,
    }
 }
 
+void VelocityInterfaceIntegrator::AssembleRHSFaceVect(
+   const FiniteElement &el_1, const FiniteElement &el_2,
+   FaceElementTransformations &Tr, Vector &elvect)
+{
+   const int dim = el_1.GetDim(), ndof = el_1.GetDof();
+
+   const int q_order = Tr.Elem1->OrderW() + 2 * el_1.GetOrder();
+   const IntegrationRule *ir = &IntRules.Get(Tr.GetGeometryType(), q_order);
+   const int nqp_face = ir->GetNPoints();
+
+   Vector shape(ndof);
+   Vector nor(dim);
+
+   for (int q = 0; q < nqp_face; q++)
+   {
+      const IntegrationPoint &ip_f = ir->IntPoint(q);
+
+      // Set the integration point in the face and the neighboring elements
+      Tr.SetAllIntPoints(&ip_f);
+
+      // Access the neighboring elements' integration points
+      // Note: eip2 will only contain valid data if Elem2 exists
+      const IntegrationPoint &ip_e1 = Tr.GetElement1IntPoint();
+      const IntegrationPoint &ip_e2 = Tr.GetElement2IntPoint();
+
+      // The normal includes the scaling.
+      if (dim == 1)
+      {
+         nor(0) = (2*ip_e1.x - 1.0 ) * Tr.Weight();
+      }
+      else { CalcOrtho(Tr.Jacobian(), nor); }
+      nor *= ip_f.weight;
+
+      // Pressure from both sides.
+      const double p1 = p.GetValue(*Tr.Elem1, ip_e1),
+                   p2 = p.GetValue(*Tr.Elem2, ip_e2);
+      const double p_avg = (p1 + p2) / 2.0;
+
+      // 1st element.
+      el_1.CalcShape(ip_e1, shape);
+      for (int i = 0; i < ndof; i++)
+      {
+         for (int d = 0; d < dim; d++)
+         {
+            elvect(d * ndof + i) += p_avg * shape(i) * nor(d);
+         }
+      }
+      // 2nd element.
+      el_2.CalcShape(ip_e1, shape);
+      for (int i = 0; i < ndof; i++)
+      {
+         for (int d = 0; d < dim; d++)
+         {
+            elvect(d * ndof + i) -= p_avg * shape(i) * nor(d);
+         }
+      }
+   }
+}
+
 void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
                                              const FiniteElement &test_fe1,
                                              const FiniteElement &test_fe2,

@@ -133,7 +133,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    qdata(dim, NE, ir.GetNPoints()),
    qdata_is_current(false),
    forcemat_is_assembled(false),
-   Force(&H1, &L2),
+   Force(&H1, &L2), FaceForce_v(&H1), FaceForce_e(&L2),
    ForcePA(nullptr), VMassPA(nullptr), EMassPA(nullptr),
    VMassPA_Jprec(nullptr),
    CG_VMass(H1.GetParMesh()->GetComm()),
@@ -272,6 +272,11 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
       // Make a dummy assembly to figure out the sparsity.
       Force.Assemble(0);
       Force.Finalize(0);
+
+      VelocityInterfaceIntegrator *vfi =
+            new VelocityInterfaceIntegrator(p_func.GetPressure());
+      vfi->SetIntRule(&ir);
+      //FaceForce_v.AddBdrFaceIntegrator();
    }
 }
 

@@ -91,6 +91,21 @@ public:
                                        DenseMatrix &elmat);
 };
 
+class VelocityInterfaceIntegrator : public LinearFormIntegrator
+{
+private:
+   const ParGridFunction &p;
+
+public:
+   VelocityInterfaceIntegrator(const ParGridFunction &p_gf) : p(p_gf) { }
+
+   using LinearFormIntegrator::AssembleRHSElementVect;
+   virtual void AssembleRHSFaceVect(const FiniteElement &el1,
+                                    const FiniteElement &el_2,
+                                    FaceElementTransformations &Tr,
+                                    Vector &elvect);
+};
+
 // Performs full assemble for the force face terms:
 // F_face_ij = - int_face [ (p1-p2) n1 h1_shape_j l2_shape_i].
 class FaceForceIntegrator : public BilinearFormIntegrator
