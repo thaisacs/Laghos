@@ -284,7 +284,9 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
       VelocityInterfaceIntegrator *vfi =
             new VelocityInterfaceIntegrator(p_func.GetPressure());
       vfi->SetIntRule(&ir);
-      //FaceForce_v.AddBdrFaceIntegrator();
+      Array<int> interface_attr(1);
+      interface_attr[0] = 77;
+      FaceForce_v.AddTraceFaceIntegrator(vfi, interface_attr);
    }
 }
 
@@ -394,6 +396,7 @@ void LagrangianHydroOperator::SolveVelocity(const Vector &S,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.MultTranspose(one, rhs);
+      rhs += FaceForce_v;
       timer.sw_force.Stop();
       rhs.Neg();
 
@@ -530,78 +533,10 @@ void LagrangianHydroOperator::ComputeDensity(ParGridFunction &rho) const
    }
 }
 
-
-
 double ComputeVolumeIntegral(const int DIM, const int NE,const int NQ,
                              const int Q1D,const int VDIM,const double ln_norm,
-                             const mfem::Vector& mass, const mfem::Vector& f)
-{
+                             const mfem::Vector& mass, const mfem::Vector& f);
 
-   auto f_vals = mfem::Reshape(f.Read(),VDIM,NQ, NE);
-   mfem::Vector integrand(NE*NQ);
-   auto I = Reshape(integrand.Write(), NQ, NE);
-
-   if (DIM == 1)
-   {
-      for (int e=0; e < NE; ++e)
-      {
-         for (int q = 0; q < NQ; ++q)
-         {
-            double vmag = 0;
-            for (int k = 0; k < VDIM; k++)
-            {
-               vmag += pow(f_vals(k,q,e),ln_norm);
-            }
-            I(q,e) = vmag;
-         }
-      }
-   }
-   else if (DIM == 2)
-   {
-      MFEM_FORALL_2D(e, NE, Q1D, Q1D, 1,
-      {
-         MFEM_FOREACH_THREAD(qy,y,Q1D)
-         {
-            MFEM_FOREACH_THREAD(qx,x,Q1D)
-            {
-               const int q = qx + qy * Q1D;
-               double vmag = 0;
-               for (int k = 0; k < VDIM; k++)
-               {
-                  vmag += pow(f_vals(k,q,e),ln_norm);
-               }
-               I(q,e) = vmag;
-            }
-         }
-      });
-   }
-   else if (DIM == 3)
-   {
-      MFEM_FORALL_3D(e, NE, Q1D, Q1D, Q1D,
-      {
-         MFEM_FOREACH_THREAD(qz,z,Q1D)
-         {
-            MFEM_FOREACH_THREAD(qy,y,Q1D)
-            {
-               MFEM_FOREACH_THREAD(qx,x,Q1D)
-               {
-                  const int q = qx + (qy + qz * Q1D) * Q1D;
-                  double vmag = 0;
-                  for (int k = 0; k < VDIM; k++)
-                  {
-                     vmag += pow(f_vals(k,q,e),ln_norm);
-                  }
-                  I(q,e) = vmag;
-               }
-            }
-         }
-      });
-
-   }
-   const double integral = integrand * mass;
-   return integral;
-
-}
 double LagrangianHydroOperator::InternalEnergy(const ParGridFunction &gf) const
 {
    double glob_ie = 0.0;
@@ -929,6 +864,7 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
    Force = 0.0;
    timer.sw_force.Start();
    Force.Assemble();
+   FaceForce_v.Assemble();
    timer.sw_force.Stop();
    forcemat_is_assembled = true;
 }
@@ -983,6 +919,76 @@ void PressureFunction::UpdatePressure(const ParGridFunction &e)
          p(i * nqp + q) = (gamma_gf(i)- 1.0) * rho * e_vals(q);
       }
    }
+}
+
+double ComputeVolumeIntegral(const int DIM, const int NE,const int NQ,
+                             const int Q1D,const int VDIM,const double ln_norm,
+                             const mfem::Vector& mass, const mfem::Vector& f)
+{
+
+   auto f_vals = mfem::Reshape(f.Read(),VDIM,NQ, NE);
+   mfem::Vector integrand(NE*NQ);
+   auto I = Reshape(integrand.Write(), NQ, NE);
+
+   if (DIM == 1)
+   {
+      for (int e=0; e < NE; ++e)
+      {
+         for (int q = 0; q < NQ; ++q)
+         {
+            double vmag = 0;
+            for (int k = 0; k < VDIM; k++)
+            {
+               vmag += pow(f_vals(k,q,e),ln_norm);
+            }
+            I(q,e) = vmag;
+         }
+      }
+   }
+   else if (DIM == 2)
+   {
+      MFEM_FORALL_2D(e, NE, Q1D, Q1D, 1,
+      {
+         MFEM_FOREACH_THREAD(qy,y,Q1D)
+         {
+            MFEM_FOREACH_THREAD(qx,x,Q1D)
+            {
+               const int q = qx + qy * Q1D;
+               double vmag = 0;
+               for (int k = 0; k < VDIM; k++)
+               {
+                  vmag += pow(f_vals(k,q,e),ln_norm);
+               }
+               I(q,e) = vmag;
+            }
+         }
+      });
+   }
+   else if (DIM == 3)
+   {
+      MFEM_FORALL_3D(e, NE, Q1D, Q1D, Q1D,
+      {
+         MFEM_FOREACH_THREAD(qz,z,Q1D)
+         {
+            MFEM_FOREACH_THREAD(qy,y,Q1D)
+            {
+               MFEM_FOREACH_THREAD(qx,x,Q1D)
+               {
+                  const int q = qx + (qy + qz * Q1D) * Q1D;
+                  double vmag = 0;
+                  for (int k = 0; k < VDIM; k++)
+                  {
+                     vmag += pow(f_vals(k,q,e),ln_norm);
+                  }
+                  I(q,e) = vmag;
+               }
+            }
+         }
+      });
+
+   }
+   const double integral = integrand * mass;
+   return integral;
 }
 
 /// Trace of a square matrix
