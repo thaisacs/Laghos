@@ -319,10 +319,6 @@ void LagrangianHydroOperator::Mult(const Vector &S, Vector &dS_dt) const
    dx.MakeRef(&H1, dS_dt, 0);
    dx = v;
 
-   ParGridFunction e;
-   e.MakeRef(&L2, *sptr, H1Vsize*2);
-   p_func.UpdatePressure(e);
-
    SolveVelocity(S, dS_dt);
    SolveEnergy(S, v, dS_dt);
    qdata_is_current = false;
@@ -701,6 +697,9 @@ void LagrangianHydroOperator::UpdateQuadratureData(const Vector &S) const
    e.MakeRef(&L2, *sptr, 2*H1.GetVSize());
    Vector e_vals;
    DenseMatrix Jpi(dim), sgrad_v(dim), Jinv(dim), stress(dim), stressJiT(dim);
+
+   // Update the pressure values (used for the shifted interface method).
+   p_func.UpdatePressure(e);
 
    // Batched computations are needed, because hydrodynamic codes usually
    // involve expensive computations of material properties. Although this
