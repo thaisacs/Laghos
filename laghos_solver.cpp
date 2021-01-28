@@ -90,6 +90,7 @@ static void Rho0DetJ0Vol(const int dim, const int NE,
 
 LagrangianHydroOperator::LagrangianHydroOperator(const int size,
                                                  ParFiniteElementSpace &h1,
+                                                 ParFiniteElementSpace &h1x,
                                                  ParFiniteElementSpace &l2,
                                                  const Array<int> &ess_tdofs,
                                                  Coefficient &rho0_coeff,
@@ -105,7 +106,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
                                                  double ftz,
                                                  const int oq) :
    TimeDependentOperator(size),
-   H1(h1), L2(l2), H1c(H1.GetParMesh(), H1.FEColl(), 1),
+   H1(h1), H1_x(h1x), L2(l2), H1c(H1.GetParMesh(), H1.FEColl(), 1),
    pmesh(H1.GetParMesh()),
    H1Vsize(H1.GetVSize()),
    H1TVSize(H1.TrueVSize()),
@@ -114,7 +115,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    L2TVSize(L2.TrueVSize()),
    L2GTVSize(L2.GlobalTrueVSize()),
    block_offsets(4),
-   x_gf(&H1),
+   x_gf(&H1_x),
    p_func(*pmesh, rho0_gf, L2.GetOrder(0), gamma_gf),
    ess_tdofs(ess_tdofs),
    dim(pmesh->Dimension()),
@@ -274,9 +275,9 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    {
       ForceIntegrator *fi = new ForceIntegrator(qdata);
       fi->SetIntRule(&ir);
-      FaceForceIntegrator *ffi = new FaceForceIntegrator(p_func.GetPressure());
+      //FaceForceIntegrator *ffi = new FaceForceIntegrator(p_func.GetPressure());
       Force.AddDomainIntegrator(fi);
-      Force.AddTraceFaceIntegrator(ffi);
+      //Force.AddTraceFaceIntegrator(ffi);
       // Make a dummy assembly to figure out the sparsity.
       Force.Assemble(0);
       Force.Finalize(0);
@@ -286,7 +287,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
       vfi->SetIntRule(&ir);
       Array<int> interface_attr(1);
       interface_attr[0] = 77;
-      FaceForce_v.AddTraceFaceIntegrator(vfi, interface_attr);
+      //FaceForce_v.AddTraceFaceIntegrator(vfi, interface_attr);
    }
 }
 
@@ -317,6 +318,8 @@ void LagrangianHydroOperator::Mult(const Vector &S, Vector &dS_dt) const
    // Set dx_dt = v (explicit).
    ParGridFunction dx;
    dx.MakeRef(&H1, dS_dt, 0);
+
+   // SHIFT - average the velocity.
    dx = v;
 
    SolveVelocity(S, dS_dt);
@@ -392,7 +395,7 @@ void LagrangianHydroOperator::SolveVelocity(const Vector &S,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.MultTranspose(one, rhs);
-      rhs += FaceForce_v;
+      //rhs += FaceForce_v;
       timer.sw_force.Stop();
       rhs.Neg();
 
@@ -487,7 +490,7 @@ void LagrangianHydroOperator::SolveEnergy(const Vector &S, const Vector &v,
 void LagrangianHydroOperator::UpdateMesh(const Vector &S) const
 {
    Vector* sptr = const_cast<Vector*>(&S);
-   x_gf.MakeRef(&H1, *sptr, 0);
+   x_gf.MakeRef(&H1_x, *sptr, 0);
    H1.GetParMesh()->NewNodes(x_gf, false);
 }
 
@@ -863,7 +866,7 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
    Force = 0.0;
    timer.sw_force.Start();
    Force.Assemble();
-   FaceForce_v.Assemble();
+   //FaceForce_v.Assemble();
    timer.sw_force.Stop();
    forcemat_is_assembled = true;
 }
@@ -1449,6 +1452,7 @@ void RK2AvgSolver::Step(Vector &S, double &t, double &dt)
    // V = v0 + 0.5 * dt * dv_dt;
    add(v0, 0.5 * dt, dv_dt, V);
    hydro_oper->SolveEnergy(S, V, dS_dt);
+   // SHIFT - average the velocity.
    dx_dt = V;
 
    // -- 2.
@@ -1460,6 +1464,7 @@ void RK2AvgSolver::Step(Vector &S, double &t, double &dt)
    // V = v0 + 0.5 * dt * dv_dt;
    add(v0, 0.5 * dt, dv_dt, V);
    hydro_oper->SolveEnergy(S, V, dS_dt);
+   // SHIFT - average the velocity.
    dx_dt = V;
 
    // -- 3.

@@ -643,6 +643,10 @@ int main(int argc, char *argv[])
    H1_FECollection H1FEC(order_v, dim);
    ParFiniteElementSpace L2FESpace(pmesh, &L2FEC);
    ParFiniteElementSpace H1FESpace(pmesh, &H1FEC, pmesh->Dimension());
+   ParFiniteElementSpace PosFESpace(pmesh, &H1FEC, pmesh->Dimension());
+
+   //cutH1Space(H1FESpace, true, true);
+   //MFEM_ABORT("lets see");
 
    // Boundary conditions: all tests use v.n = 0 on the boundary, and we assume
    // that the boundaries are straight.
@@ -694,8 +698,6 @@ int main(int argc, char *argv[])
       }
       else { el->SetAttribute(1); }
    }
-   cutH1Space(H1FESpace, true, true);
-   MFEM_ABORT("lets see");
 
    const HYPRE_Int glob_size_l2 = L2FESpace.GlobalTrueVSize();
    const HYPRE_Int glob_size_h1 = H1FESpace.GlobalTrueVSize();
@@ -711,13 +713,14 @@ int main(int argc, char *argv[])
    // - 0 -> position
    // - 1 -> velocity
    // - 2 -> specific internal energy
-   const int Vsize_l2 = L2FESpace.GetVSize();
-   const int Vsize_h1 = H1FESpace.GetVSize();
+   const int Vsize_x = PosFESpace.GetVSize();
+   const int Vsize_v = H1FESpace.GetVSize();
+   const int Vsize_e = L2FESpace.GetVSize();
    Array<int> offset(4);
    offset[0] = 0;
-   offset[1] = offset[0] + Vsize_h1;
-   offset[2] = offset[1] + Vsize_h1;
-   offset[3] = offset[2] + Vsize_l2;
+   offset[1] = offset[0] + Vsize_x;
+   offset[2] = offset[1] + Vsize_v;
+   offset[3] = offset[2] + Vsize_e;
    BlockVector S(offset, Device::GetMemoryType());
 
    // Define GridFunction objects for the position, velocity and specific
@@ -725,7 +728,7 @@ int main(int argc, char *argv[])
    // compute the density values given the current mesh position, using the
    // property of pointwise mass conservation.
    ParGridFunction x_gf, v_gf, e_gf;
-   x_gf.MakeRef(&H1FESpace, S, offset[0]);
+   x_gf.MakeRef(&PosFESpace, S, offset[0]);
    v_gf.MakeRef(&H1FESpace, S, offset[1]);
    e_gf.MakeRef(&L2FESpace, S, offset[2]);
 
@@ -799,7 +802,8 @@ int main(int argc, char *argv[])
    if (impose_visc) { visc = true; }
 
    hydrodynamics::LagrangianHydroOperator hydro(S.Size(),
-                                                H1FESpace, L2FESpace, ess_tdofs,
+                                                H1FESpace, PosFESpace,
+                                                L2FESpace, ess_tdofs,
                                                 rho0_coeff, rho0_gf,
                                                 mat_gf, source, cfl,
                                                 visc, vorticity, p_assembly,
