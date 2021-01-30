@@ -165,8 +165,36 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
    const IntegrationRule *ir = &IntRules.Get(Trans.GetGeometryType(), ir_order);
    const int nqp_face = ir->GetNPoints();
 
+   // d at all face quad points.
+
+   // grad_p at all quad points, on both sides.
+   Vector p_e;
+   Array<int> dofs_p;
+   const FiniteElement &el_p = *p.ParFESpace()->GetFE(0);
+   const int dof_p = el_p.GetDof();
+   DenseMatrix p_grad_e_1(dof_p, dim), p_grad_e_2(dof_p, dim);
+   DenseMatrix grad_phys; // This will be (dof_p x dim, dof_p).
+   {
+      p.ParFESpace()->GetElementDofs(Trans.Elem1No, dofs_p);
+      p.GetSubVector(dofs_p, p_e);
+      ElementTransformation &Tr_el1 = Trans.GetElement1Transformation();
+      el_p.ProjectGrad(el_p, Tr_el1, grad_phys);
+      Vector grad_ptr(p_grad_e_1.GetData(), dof_p*dim);
+      grad_phys.Mult(p_e, grad_ptr);
+   }
+   if (Trans.Elem2No > 0)
+   {
+      p.ParFESpace()->GetElementDofs(Trans.Elem1No, dofs_p);
+      p.GetSubVector(dofs_p, p_e);
+      ElementTransformation &Tr_el2 = Trans.GetElement2Transformation();
+      el_p.ProjectGrad(el_p, Tr_el2, grad_phys);
+      Vector grad_ptr(p_grad_e_2.GetData(), dof_p*dim);
+      grad_phys.Mult(p_e, grad_ptr);
+   }
+
    Vector nor(dim);
 
+   Vector p_grad_q(dim), d_q(dim), shape_p(dof_p);
    for (int q = 0; q  < nqp_face; q++)
    {
       const IntegrationPoint &ip_f = ir->IntPoint(q);
@@ -179,7 +207,7 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
       const IntegrationPoint &ip_e1 = Trans.GetElement1IntPoint();
       const IntegrationPoint &ip_e2 = Trans.GetElement2IntPoint();
 
-      // The normal includes the scaling.
+      // The normal includes the Jac scaling.
       if (dim == 1)
       {
          nor(0) = (2*ip_e1.x - 1.0 ) * Trans.Weight();
@@ -192,10 +220,15 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
 
       // 1st element.
       {
-         // Pressure from the 1st element.
-         const double p1 = p.GetValue(*Trans.Elem1, ip_e1);
-         // L2 shape functions on the 1st element.
+         // Compute dist * grad_p in the first element.
+         el_p.CalcShape(ip_e1, shape_p);
+         p_grad_e_1.MultTranspose(shape_p, p_grad_q);
+         dist.Eval(d_q, Trans.GetElement1Transformation(), ip_e1);
+         const double grad_p_d = d_q * p_grad_q;
+
+         // L2 shape functions in the 1st element.
          test_fe1.CalcShape(ip_e1, l2_shape);
+
          for (int i = 0; i < l2dofs_cnt; i++)
          {
             for (int j = 0; j < h1dofs_cnt_face; j++)
@@ -203,7 +236,7 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
                for (int d = 0; d < dim; d++)
                {
                   elmat(i, d*h1dofs_cnt_face + j) +=
-                        p1 * l2_shape(i) * h1_shape_face(j) * nor(d);
+                        grad_p_d * l2_shape(i) * h1_shape_face(j) * nor(d);
                }
             }
          }
@@ -211,8 +244,12 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
       // 2nd element if there is such (subtracting from the 1st).
       if (Trans.Elem2No >= 0)
       {
-         // Pressure from the 2nd element.
-         const double p2 = p.GetValue(*Trans.Elem2, ip_e2);
+         // Compute dist * grad_p in the second element.
+         el_p.CalcShape(ip_e2, shape_p);
+         p_grad_e_2.MultTranspose(shape_p, p_grad_q);
+         dist.Eval(d_q, Trans.GetElement2Transformation(), ip_e2);
+         const double grad_p_d = d_q * p_grad_q;
+
          // L2 shape functions on the 2nd element.
          test_fe2.CalcShape(ip_e2, l2_shape);
          for (int i = 0; i < l2dofs_cnt; i++)
@@ -222,7 +259,7 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
                for (int d = 0; d < dim; d++)
                {
                   elmat(l2dofs_cnt + i, d*h1dofs_cnt_face + j) -=
-                        p2 * l2_shape(i) * h1_shape_face(j) * nor(d);
+                        grad_p_d * l2_shape(i) * h1_shape_face(j) * nor(d);
                }
             }
          }

@@ -63,6 +63,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "laghos_solver.hpp"
+#include "laghos_shift.hpp"
 #include "riemann1D.hpp"
 
 using std::cout;
@@ -647,6 +648,8 @@ int main(int argc, char *argv[])
 
    //cutH1Space(H1FESpace, true, true);
    //MFEM_ABORT("lets see");
+   hydrodynamics::MarkElementAttributes(*pmesh, problem);
+   hydrodynamics::MarkFaceAttributes(*pmesh);
 
    // Boundary conditions: all tests use v.n = 0 on the boundary, and we assume
    // that the boundaries are straight.
@@ -684,19 +687,6 @@ int main(int argc, char *argv[])
          delete pmesh;
          MPI_Finalize();
          return 3;
-   }
-
-   // Assign material indices to the element attributes.
-   for (int i = 0; i < NE; i++)
-   {
-      Vector center;
-      pmesh->GetElementCenter(i, center);
-      Element *el = pmesh->GetElement(i);
-      if (center(0) <= 0.5 || center(1) >= 0.5)
-      {
-         el->SetAttribute(0);
-      }
-      else { el->SetAttribute(1); }
    }
 
    const HYPRE_Int glob_size_l2 = L2FESpace.GlobalTrueVSize();
@@ -797,6 +787,7 @@ int main(int argc, char *argv[])
       case 5: visc = true; break;
       case 6: visc = true; break;
       case 7: source = 2; visc = true; vorticity = true;  break;
+      case 8: visc = true; break;
       default: MFEM_ABORT("Wrong problem specification!");
    }
    if (impose_visc) { visc = true; }
@@ -1161,6 +1152,7 @@ double rho0(const Vector &x)
          return 1.0;
       }
       case 7: return x(1) >= 0.0 ? 2.0 : 1.0;
+      case 8: return (x(0) < 0.5) ? 1.0 : 0.125;
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;
    }
 }
@@ -1177,6 +1169,7 @@ double gamma_func(const Vector &x)
       case 5: return 1.4;
       case 6: return 1.4;
       case 7: return 5.0 / 3.0;
+      case 8: return (x(0) < 0.5) ? 2.0 : 1.4;
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;
    }
 }
@@ -1244,6 +1237,7 @@ void v0(const Vector &x, Vector &v)
          v(1) = 0.02 * exp(-2*M_PI*x(1)*x(1)) * cos(2*M_PI*x(0));
          break;
       }
+      case 8: v = 0.0; break;
       default: MFEM_ABORT("Bad number given for problem id!");
    }
 }
@@ -1313,6 +1307,8 @@ double e0(const Vector &x)
          const double rho = rho0(x), gamma = gamma_func(x);
          return (6.0 - rho * x(1)) / (gamma - 1.0) / rho;
       }
+      case 8: return (x(0) < 0.5) ? 2.0 / rho0(x) / (gamma_func(x) - 1.0)
+                                  : 0.1 / rho0(x) / (gamma_func(x) - 1.0);
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;
    }
 }

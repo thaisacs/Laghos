@@ -112,15 +112,17 @@ public:
 };
 
 // Performs full assemble for the force face terms:
-// F_face_ij = - int_face [ (p1-p2) n1 h1_shape_j l2_shape_i].
+// F_face_ij = - int_face [ [grad_p * dist] * h1_shape_j l2_shape_i].
 class FaceForceIntegrator : public BilinearFormIntegrator
 {
 private:
    Vector h1_shape_face, l2_shape;
    const ParGridFunction &p;
+   VectorCoefficient &dist;
 
   public:
-   FaceForceIntegrator(const ParGridFunction &p_gf) : p(p_gf) { }
+   FaceForceIntegrator(const ParGridFunction &p_gf,
+                       VectorCoefficient &d) : p(p_gf), dist(d)  { }
 
    using BilinearFormIntegrator::AssembleFaceMatrix;
    void AssembleFaceMatrix(const FiniteElement &trial_face_fe,

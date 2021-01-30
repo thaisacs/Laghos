@@ -137,7 +137,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    qdata(dim, NE, ir.GetNPoints()),
    qdata_is_current(false),
    forcemat_is_assembled(false),
-   Force(&H1, &L2), FaceForce_v(&H1), FaceForce_e(&L2),
+   Force(&H1, &L2), FaceForce(&H1, &L2), FaceForce_v(&H1), FaceForce_e(&L2),
    ForcePA(nullptr), VMassPA(nullptr), EMassPA(nullptr),
    VMassPA_Jprec(nullptr),
    CG_VMass(H1.GetParMesh()->GetComm()),
@@ -273,14 +273,23 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
    }
    else
    {
+      // Standard volumetric forces.
       ForceIntegrator *fi = new ForceIntegrator(qdata);
       fi->SetIntRule(&ir);
-      //FaceForceIntegrator *ffi = new FaceForceIntegrator(p_func.GetPressure());
       Force.AddDomainIntegrator(fi);
-      //Force.AddTraceFaceIntegrator(ffi);
+
+      // Interface forces.
+      VectorGridFunctionCoefficient distance;
+      auto *ffi = new FaceForceIntegrator(p_func.GetPressure(), distance);
+      FaceForce.AddBdrTraceFaceIntegrator(ffi);
+
       // Make a dummy assembly to figure out the sparsity.
       Force.Assemble(0);
       Force.Finalize(0);
+
+      // Make a dummy assembly to figure out the sparsity.
+      //FaceForce.Assemble(0);
+      //FaceForce.Finalize(0);
 
       VelocityInterfaceIntegrator *vfi =
             new VelocityInterfaceIntegrator(p_func.GetPressure());
@@ -395,6 +404,7 @@ void LagrangianHydroOperator::SolveVelocity(const Vector &S,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.MultTranspose(one, rhs);
+      //FaceForce.AddMultTranspose(one, rhs);
       //rhs += FaceForce_v;
       timer.sw_force.Stop();
       rhs.Neg();
@@ -470,6 +480,7 @@ void LagrangianHydroOperator::SolveEnergy(const Vector &S, const Vector &v,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.Mult(v, e_rhs);
+      //FaceForce.AddMult(v, e_rhs);
       timer.sw_force.Stop();
       if (e_source) { e_rhs += *e_source; }
       Vector loc_rhs(l2dofs_cnt), loc_de(l2dofs_cnt);
@@ -864,8 +875,10 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
 {
    if (forcemat_is_assembled || p_assembly) { return; }
    Force = 0.0;
+   //FaceForce = 0.0;
    timer.sw_force.Start();
    Force.Assemble();
+   //FaceForce.Assemble();
    //FaceForce_v.Assemble();
    timer.sw_force.Stop();
    forcemat_is_assembled = true;
