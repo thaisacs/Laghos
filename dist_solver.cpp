@@ -180,7 +180,7 @@ void HeatDistanceSolver::ComputeScalarDistance(Coefficient &zero_level_set,
       a_d.FormLinearSystem(ess_tdof_list, u_dirichlet, b, A, X, B);
       auto *prec = new HypreBoomerAMG;
       prec->SetPrintLevel(amg_print_lvl);
-      cg.SetPreconditioner(*prec);
+      //cg.SetPreconditioner(*prec);
       cg.SetOperator(*A);
       cg.Mult(B, X);
       a_d.RecoverFEMSolution(X, b, u_dirichlet);
@@ -198,7 +198,7 @@ void HeatDistanceSolver::ComputeScalarDistance(Coefficient &zero_level_set,
       a_n.FormLinearSystem(ess_tdof_list, u_neumann, b, A, X, B);
       auto *prec2 = new HypreBoomerAMG;
       prec2->SetPrintLevel(amg_print_lvl);
-      cg.SetPreconditioner(*prec2);
+      //cg.SetPreconditioner(*prec2);
       cg.SetOperator(*A);
       cg.Mult(B, X);
       a_n.RecoverFEMSolution(X, b, u_neumann);
@@ -235,7 +235,7 @@ void HeatDistanceSolver::ComputeScalarDistance(Coefficient &zero_level_set,
 
       auto *prec = new HypreBoomerAMG;
       prec->SetPrintLevel(amg_print_lvl);
-      cg.SetPreconditioner(*prec);
+      //cg.SetPreconditioner(*prec);
       cg.SetOperator(*A);
       cg.Mult(B, X);
       a2.RecoverFEMSolution(X, b2, distance);

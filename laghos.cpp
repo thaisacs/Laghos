@@ -648,8 +648,6 @@ int main(int argc, char *argv[])
 
    //cutH1Space(H1FESpace, true, true);
    //MFEM_ABORT("lets see");
-   hydrodynamics::MarkElementAttributes(*pmesh, problem);
-   hydrodynamics::MarkFaceAttributes(*pmesh);
 
    // Boundary conditions: all tests use v.n = 0 on the boundary, and we assume
    // that the boundaries are straight.
@@ -722,22 +720,6 @@ int main(int argc, char *argv[])
    v_gf.MakeRef(&H1FESpace, S, offset[1]);
    e_gf.MakeRef(&L2FESpace, S, offset[2]);
 
-   //
-   // Shifted interface stuff.
-   //
-   ParFiniteElementSpace pfes_xi(pmesh, &H1FEC);
-   // Interface function.
-   ParGridFunction xi(&pfes_xi);
-   FunctionCoefficient coeff_xi_0(hydrodynamics::interfaceLS);
-   xi.ProjectCoefficient(coeff_xi_0);
-   GridFunctionCoefficient coeff_xi(&xi);
-   // Distance vector.
-   ParGridFunction dist(&H1FESpace);
-   VectorGridFunctionCoefficient dist_coeff(&dist);
-
-   HeatDistanceSolver dist_solver(2.0);
-   dist_solver.ComputeVectorDistance(coeff_xi, dist);
-
    // Initialize x_gf using the starting mesh coordinates.
    pmesh->SetNodalGridFunction(&x_gf);
    // Sync the data location of x_gf with its base, S
@@ -791,6 +773,32 @@ int main(int argc, char *argv[])
    FunctionCoefficient mat_coeff(gamma_func);
    mat_gf.ProjectCoefficient(mat_coeff);
 
+   //
+   // Shifted interface stuff.
+   //
+   // Interface function.
+   ParFiniteElementSpace pfes_xi(pmesh, &H1FEC);
+   ParGridFunction xi(&pfes_xi);
+   FunctionCoefficient coeff_xi_0(hydrodynamics::interfaceLS);
+   xi.ProjectCoefficient(coeff_xi_0);
+   GridFunctionCoefficient coeff_xi(&xi);
+   // Material marking and visualization function.
+   ParGridFunction materials(&mat_fes);
+   for (int i = 0; i < NE; i++)
+   {
+      int mat_id = hydrodynamics::material_id(i, xi);
+      pmesh->SetAttribute(i, mat_id);
+      materials(i) = mat_id;
+   }
+   hydrodynamics::MarkFaceAttributes(*pmesh);
+   // Distance vector.
+   ParGridFunction dist(&H1FESpace);
+   VectorGridFunctionCoefficient dist_coeff(&dist);
+
+   HeatDistanceSolver dist_solver(2.0);
+   dist_solver.print_level = 0;
+   dist_solver.ComputeVectorDistance(coeff_xi, dist);
+
    // Additional details, depending on the problem.
    int source = 0; bool visc = true, vorticity = false;
    switch (problem)
@@ -817,7 +825,7 @@ int main(int argc, char *argv[])
                                                 cg_tol, cg_max_iter, ftz_tol,
                                                 order_q);
 
-   socketstream vis_rho, vis_v, vis_e, vis_p, vis_xi, vis_dist;
+   socketstream vis_rho, vis_v, vis_e, vis_p, vis_xi, vis_dist, vis_mat;
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -837,6 +845,7 @@ int main(int argc, char *argv[])
       vis_p.precision(8);
       vis_xi.precision(8);
       vis_dist.precision(8);
+      vis_mat.precision(8);
       int Wx = 0, Wy = 0; // window position
       const int Ww = 350, Wh = 350; // window size
       int offx = Ww + 10; // window offsets
@@ -859,6 +868,8 @@ int main(int argc, char *argv[])
                                     "Interface", 400, 400, Ww, Wh);
       hydrodynamics::VisualizeField(vis_dist, vishost, visport, dist,
                                     "Distances", 800, 400, Ww, Wh);
+      hydrodynamics::VisualizeField(vis_mat, vishost, visport, materials,
+                                    "Materials", 1200, 400, Ww, Wh);
    }
 
    // Save data for VisIt visualization.
@@ -1020,6 +1031,8 @@ int main(int argc, char *argv[])
                                           xi, "Interface", 400, 400, Ww, Wh);
             hydrodynamics::VisualizeField(vis_dist, vishost, visport, dist,
                                           "Distances", 800, 400, Ww, Wh);
+            hydrodynamics::VisualizeField(vis_mat, vishost, visport, materials,
+                                          "Materials", 1200, 400, Ww, Wh);
          }
 
          if (visit)

@@ -404,7 +404,7 @@ void LagrangianHydroOperator::SolveVelocity(const Vector &S,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.MultTranspose(one, rhs);
-      //FaceForce.AddMultTranspose(one, rhs, -1.0);
+      FaceForce.AddMultTranspose(one, rhs, -1.0);
       //rhs += FaceForce_v;
       timer.sw_force.Stop();
       rhs.Neg();
