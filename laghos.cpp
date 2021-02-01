@@ -63,7 +63,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "laghos_solver.hpp"
-#include "laghos_shift.hpp"
+#include "dist_solver.hpp"
 #include "riemann1D.hpp"
 
 using std::cout;
@@ -722,6 +722,22 @@ int main(int argc, char *argv[])
    v_gf.MakeRef(&H1FESpace, S, offset[1]);
    e_gf.MakeRef(&L2FESpace, S, offset[2]);
 
+   //
+   // Shifted interface stuff.
+   //
+   ParFiniteElementSpace pfes_xi(pmesh, &H1FEC);
+   // Interface function.
+   ParGridFunction xi(&pfes_xi);
+   FunctionCoefficient coeff_xi_0(hydrodynamics::interfaceLS);
+   xi.ProjectCoefficient(coeff_xi_0);
+   GridFunctionCoefficient coeff_xi(&xi);
+   // Distance vector.
+   ParGridFunction dist(&H1FESpace);
+   VectorGridFunctionCoefficient dist_coeff(&dist);
+
+   HeatDistanceSolver dist_solver(2.0);
+   dist_solver.ComputeVectorDistance(coeff_xi, dist);
+
    // Initialize x_gf using the starting mesh coordinates.
    pmesh->SetNodalGridFunction(&x_gf);
    // Sync the data location of x_gf with its base, S
@@ -796,12 +812,12 @@ int main(int argc, char *argv[])
                                                 H1FESpace, PosFESpace,
                                                 L2FESpace, ess_tdofs,
                                                 rho0_coeff, rho0_gf,
-                                                mat_gf, source, cfl,
+                                                mat_gf, dist_coeff, source, cfl,
                                                 visc, vorticity, p_assembly,
                                                 cg_tol, cg_max_iter, ftz_tol,
                                                 order_q);
 
-   socketstream vis_rho, vis_v, vis_e, vis_p;
+   socketstream vis_rho, vis_v, vis_e, vis_p, vis_xi, vis_dist;
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -819,9 +835,11 @@ int main(int argc, char *argv[])
       vis_v.precision(8);
       vis_e.precision(8);
       vis_p.precision(8);
+      vis_xi.precision(8);
+      vis_dist.precision(8);
       int Wx = 0, Wy = 0; // window position
       const int Ww = 350, Wh = 350; // window size
-      int offx = Ww+10; // window offsets
+      int offx = Ww + 10; // window offsets
       if (problem != 0 && problem != 4)
       {
          hydrodynamics::VisualizeField(vis_rho, vishost, visport, rho_gf,
@@ -833,10 +851,14 @@ int main(int argc, char *argv[])
       Wx += offx;
       hydrodynamics::VisualizeField(vis_e, vishost, visport, e_gf,
                                     "Specific Internal Energy", Wx, Wy, Ww, Wh);
-      Wx += offx;
+
       hydrodynamics::VisualizeField(vis_p, vishost, visport,
                                     hydro.GetPressure(e_gf),
-                                    "Pressure", Wx, Wy, Ww,Wh);
+                                    "Pressure", 0, 400, Ww, Wh);
+      hydrodynamics::VisualizeField(vis_xi, vishost, visport, xi,
+                                    "Interface", 400, 400, Ww, Wh);
+      hydrodynamics::VisualizeField(vis_dist, vishost, visport, dist,
+                                    "Distances", 800, 400, Ww, Wh);
    }
 
    // Save data for VisIt visualization.
@@ -930,6 +952,8 @@ int main(int argc, char *argv[])
       // and the oper object might have redirected the mesh positions to those.
       pmesh->NewNodes(x_gf, false);
 
+      dist_solver.ComputeVectorDistance(coeff_xi, dist);
+
       if (last_step || (ti % vis_steps) == 0)
       {
          double lnorm = e_gf * e_gf, norm;
@@ -988,11 +1012,14 @@ int main(int argc, char *argv[])
             hydrodynamics::VisualizeField(vis_e, vishost, visport, e_gf,
                                           "Specific Internal Energy",
                                           Wx, Wy, Ww,Wh);
-            Wx += offx;
+
             hydrodynamics::VisualizeField(vis_p, vishost, visport,
                                           hydro.GetPressure(e_gf),
-                                          "Pressure",
-                                          Wx, Wy, Ww,Wh);
+                                          "Pressure", 0, 400, Ww, Wh);
+            hydrodynamics::VisualizeField(vis_xi, vishost, visport,
+                                          xi, "Interface", 400, 400, Ww, Wh);
+            hydrodynamics::VisualizeField(vis_dist, vishost, visport, dist,
+                                          "Distances", 800, 400, Ww, Wh);
          }
 
          if (visit)

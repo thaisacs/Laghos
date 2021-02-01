@@ -96,6 +96,7 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
                                                  Coefficient &rho0_coeff,
                                                  ParGridFunction &rho0_gf,
                                                  ParGridFunction &gamma_gf,
+                                                 VectorCoefficient &dist_coeff,
                                                  const int source,
                                                  const double cfl,
                                                  const bool visc,
@@ -279,17 +280,16 @@ LagrangianHydroOperator::LagrangianHydroOperator(const int size,
       Force.AddDomainIntegrator(fi);
 
       // Interface forces.
-      VectorGridFunctionCoefficient distance;
-      auto *ffi = new FaceForceIntegrator(p_func.GetPressure(), distance);
-      FaceForce.AddBdrTraceFaceIntegrator(ffi);
+      auto *ffi = new FaceForceIntegrator(p_func.GetPressure(), dist_coeff);
+      FaceForce.AddTraceFaceIntegrator(ffi);
 
       // Make a dummy assembly to figure out the sparsity.
       Force.Assemble(0);
       Force.Finalize(0);
 
       // Make a dummy assembly to figure out the sparsity.
-      //FaceForce.Assemble(0);
-      //FaceForce.Finalize(0);
+      FaceForce.Assemble(0);
+      FaceForce.Finalize(0);
 
       VelocityInterfaceIntegrator *vfi =
             new VelocityInterfaceIntegrator(p_func.GetPressure());
@@ -404,7 +404,7 @@ void LagrangianHydroOperator::SolveVelocity(const Vector &S,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.MultTranspose(one, rhs);
-      //FaceForce.AddMultTranspose(one, rhs);
+      //FaceForce.AddMultTranspose(one, rhs, -1.0);
       //rhs += FaceForce_v;
       timer.sw_force.Stop();
       rhs.Neg();
@@ -875,10 +875,10 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
 {
    if (forcemat_is_assembled || p_assembly) { return; }
    Force = 0.0;
-   //FaceForce = 0.0;
+   FaceForce = 0.0;
    timer.sw_force.Start();
    Force.Assemble();
-   //FaceForce.Assemble();
+   FaceForce.Assemble();
    //FaceForce_v.Assemble();
    timer.sw_force.Stop();
    forcemat_is_assembled = true;
@@ -886,7 +886,7 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
 
 PressureFunction::PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
                                    int e_order, mfem::ParGridFunction &ggf)
-   : p_fec(2 * e_order, pmesh.Dimension(), BasisType::Positive),
+   : p_fec(2 * e_order, pmesh.Dimension(), basis_type),
      p_fes(&pmesh, &p_fec), p(&p_fes),
      rho0DetJ0(p.Size()), gamma_gf(ggf)
 {

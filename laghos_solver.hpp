@@ -19,6 +19,7 @@
 
 #include "mfem.hpp"
 #include "laghos_assembly.hpp"
+#include "laghos_shift.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -58,6 +59,7 @@ struct TimingData
 class PressureFunction
 {
 private:
+   const int basis_type = BasisType::GaussLobatto;
    L2_FECollection p_fec;
    ParFiniteElementSpace p_fes;
    ParGridFunction p;
@@ -192,6 +194,7 @@ public:
                            Coefficient &rho0_coeff,
                            ParGridFunction &rho0_gf,
                            ParGridFunction &gamma_gf,
+                           VectorCoefficient &dist_coeff,
                            const int source,
                            const double cfl,
                            const bool visc, const bool vort, const bool pa,

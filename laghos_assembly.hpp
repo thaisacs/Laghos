@@ -111,27 +111,6 @@ public:
                                     Vector &elvect);
 };
 
-// Performs full assemble for the force face terms:
-// F_face_ij = - int_face [ [grad_p * dist] * h1_shape_j l2_shape_i].
-class FaceForceIntegrator : public BilinearFormIntegrator
-{
-private:
-   Vector h1_shape_face, l2_shape;
-   const ParGridFunction &p;
-   VectorCoefficient &dist;
-
-  public:
-   FaceForceIntegrator(const ParGridFunction &p_gf,
-                       VectorCoefficient &d) : p(p_gf), dist(d)  { }
-
-   using BilinearFormIntegrator::AssembleFaceMatrix;
-   void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
-                           const FiniteElement &test_fe1,
-                           const FiniteElement &test_fe2,
-                           FaceElementTransformations &Trans,
-                           DenseMatrix &elmat);
-};
-
 // Performs partial assembly for the force operator.
 class ForcePAOperator : public Operator
 {
