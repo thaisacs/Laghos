@@ -787,7 +787,7 @@ int main(int argc, char *argv[])
    for (int i = 0; i < NE; i++)
    {
       int mat_id = hydrodynamics::material_id(i, xi);
-      pmesh->SetAttribute(i, mat_id);
+      pmesh->SetAttribute(i, mat_id + 1);
       materials(i) = mat_id;
    }
    hydrodynamics::MarkFaceAttributes(*pmesh);
@@ -869,7 +869,7 @@ int main(int argc, char *argv[])
       hydrodynamics::VisualizeField(vis_dist, vishost, visport, dist,
                                     "Distances", 800, 400, Ww, Wh);
       hydrodynamics::VisualizeField(vis_mat, vishost, visport, materials,
-                                    "Materials", 1200, 400, Ww, Wh);
+                                    "Materials", 0, 800, Ww, Wh);
    }
 
    // Save data for VisIt visualization.
@@ -1032,7 +1032,7 @@ int main(int argc, char *argv[])
             hydrodynamics::VisualizeField(vis_dist, vishost, visport, dist,
                                           "Distances", 800, 400, Ww, Wh);
             hydrodynamics::VisualizeField(vis_mat, vishost, visport, materials,
-                                          "Materials", 1200, 400, Ww, Wh);
+                                          "Materials", 0, 800, Ww, Wh);
          }
 
          if (visit)
