@@ -795,7 +795,9 @@ int main(int argc, char *argv[])
    ParGridFunction dist(&H1FESpace);
    VectorGridFunctionCoefficient dist_coeff(&dist);
 
-   HeatDistanceSolver dist_solver(2.0);
+   PLapDistanceSolver dist_solver(7);
+   //HeatDistanceSolver dist_solver(2.0);
+   //dist_solver.diffuse_iter = 1;
    dist_solver.print_level = 0;
    dist_solver.ComputeVectorDistance(coeff_xi, dist);
 
@@ -803,7 +805,7 @@ int main(int argc, char *argv[])
    int source = 0; bool visc = true, vorticity = false;
    switch (problem)
    {
-      case 0: if (pmesh->Dimension() == 2) { source = 1; } visc = false; break;
+      case 0: if (pmesh->Dimension() == 2) { source = 1; } visc = true; break;
       case 1: visc = true; break;
       case 2: visc = true; break;
       case 3: visc = true; S.HostRead(); break;
@@ -940,7 +942,7 @@ int main(int argc, char *argv[])
          // Repeat (solve again) with a decreased time step - decrease of the
          // time estimate suggests appearance of oscillations.
          dt *= 0.85;
-         if (dt < std::numeric_limits<double>::epsilon())
+         if (dt < 1e-6)
          { MFEM_ABORT("The time step crashed!"); }
          t = t_old;
          S = S_old;

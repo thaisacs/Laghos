@@ -175,18 +175,6 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
          dist.Eval(d_q, Trans.GetElement1Transformation(), ip_e1);
          const double grad_p_d = d_q * p_grad_q;
 
-         // The normal must be outward w.r.t. element 1.
-         // For attr 2, we always have d.n_2 > 0.
-         // For attr 1, we always have d.n_1 < 0.
-         if (Trans.GetElement1Transformation().Attribute == 2)
-         {
-            if (nor * d_q < 0.0) { nor *= -1.0; MFEM_ABORT("test2"); }
-         }
-         else
-         {
-            if (nor * d_q > 0.0) { nor *= -1.0; MFEM_ABORT("test1"); }
-         }
-
          // L2 shape functions in the 1st element.
          test_fe1.CalcShape(ip_e1, l2_shape);
 
@@ -213,6 +201,7 @@ void FaceForceIntegrator::AssembleFaceMatrix(const FiniteElement &trial_face_fe,
 
          // L2 shape functions on the 2nd element.
          test_fe2.CalcShape(ip_e2, l2_shape);
+
          for (int i = 0; i < l2dofs_cnt; i++)
          {
             for (int j = 0; j < h1dofs_cnt_face; j++)

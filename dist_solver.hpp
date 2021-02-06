@@ -43,7 +43,7 @@ class HeatDistanceSolver : public DistanceSolver
 public:
    HeatDistanceSolver(double diff_coeff)
       : DistanceSolver(), parameter_t(diff_coeff), smooth_steps(0),
-        diffuse_iter(1), transform(true), vis_glvis(false) { }
+        diffuse_iter(0), transform(true), vis_glvis(false) { }
 
    void ComputeScalarDistance(Coefficient &zero_level_set,
                               ParGridFunction &distance);

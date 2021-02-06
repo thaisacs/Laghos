@@ -480,7 +480,7 @@ void LagrangianHydroOperator::SolveEnergy(const Vector &S, const Vector &v,
       timer.sw_force.Start();
       // This Force object is l2_dofs x h1_dofs (transpose of the paper one).
       Force.Mult(v, e_rhs);
-      FaceForce.AddMult(v, e_rhs, 1.0);
+      //FaceForce.AddMult(v, e_rhs, 1.0);
       timer.sw_force.Stop();
       if (e_source) { e_rhs += *e_source; }
       Vector loc_rhs(l2dofs_cnt), loc_de(l2dofs_cnt);
@@ -886,7 +886,7 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
 
 PressureFunction::PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
                                    int e_order, mfem::ParGridFunction &ggf)
-   : p_fec(2 * e_order, pmesh.Dimension(), basis_type),
+   : p_fec(2, pmesh.Dimension(), basis_type),
      p_fes(&pmesh, &p_fec), p(&p_fes),
      rho0DetJ0(p.Size()), gamma_gf(ggf)
 {
