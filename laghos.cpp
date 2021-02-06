@@ -805,7 +805,7 @@ int main(int argc, char *argv[])
    int source = 0; bool visc = true, vorticity = false;
    switch (problem)
    {
-      case 0: if (pmesh->Dimension() == 2) { source = 1; } visc = true; break;
+      case 0: if (pmesh->Dimension() == 2) { source = 1; } visc = false; break;
       case 1: visc = true; break;
       case 2: visc = true; break;
       case 3: visc = true; S.HostRead(); break;

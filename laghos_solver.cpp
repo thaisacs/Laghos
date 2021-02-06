@@ -886,7 +886,7 @@ void LagrangianHydroOperator::AssembleForceMatrix() const
 
 PressureFunction::PressureFunction(ParMesh &pmesh, ParGridFunction &rho0,
                                    int e_order, mfem::ParGridFunction &ggf)
-   : p_fec(2, pmesh.Dimension(), basis_type),
+   : p_fec(1, pmesh.Dimension(), basis_type),
      p_fes(&pmesh, &p_fec), p(&p_fes),
      rho0DetJ0(p.Size()), gamma_gf(ggf)
 {

@@ -49,13 +49,17 @@ int material_id(int el_id, const ParGridFunction &g)
 
 double interfaceLS(const Vector &x)
 {
-   const int mode = 1;
+   // 0 - vertical
+   // 1 - diagonal
+   // 2 - circle
+   const int mode = 2;
 
    const int dim = x.Size();
    switch (mode)
    {
-      case 0: return tanh(x(0) - 0.5);
-      case 1:
+      case 0: return tanh(x(0) - 0.57);
+      case 1: return tanh(x(0) - x(1));
+      case 2:
       {
       double center[3] = {0.5, 0.5, 0.5};
          double rad = 0.0;
