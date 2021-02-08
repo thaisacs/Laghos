@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     bool solDiff = false;
     bool match_end_time = false;
     const char *normtype_char = "l2";
-    const char *offsetType = "previous";
+    const char *offsetType = "initial";
     Array<double> twep;
     Array2D<int> twparam;
     ROM_Options romOptions;

@@ -103,7 +103,7 @@ struct ROM_Options
     bool GramSchmidt = false; // whether to use Gram-Schmidt with respect to mass matrices
     bool RK2AvgSolver = false; // true if RK2Avg solver is used for time integration
     bool paramOffset = false; // TODO: redundant, remove after PR 98 used for determining offset options in the online stage, depending on parametric ROM or non-parametric
-    offsetStyle offsetType = usePreviousSolution; // types of offset in time windows
+    offsetStyle offsetType = useInitialState; // types of offset in time windows
 
     bool mergeXV = false; // If true, merge bases for V and X-X0 by using BasisGenerator on normalized basis vectors for V and X-X0.
 
