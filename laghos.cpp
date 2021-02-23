@@ -64,6 +64,13 @@
 #include <sys/resource.h>
 #include "laghos_solver.hpp"
 
+extern "C" {
+  void init_timestep_();
+  void begin_timestep_();
+  void end_timestep_();
+  void exit_timestep_();
+}
+
 using std::cout;
 using std::endl;
 using namespace mfem;
@@ -123,6 +130,8 @@ int main(int argc, char *argv[])
    int dev = 0;
    double blast_energy = 0.25;
    double blast_position[] = {0.0, 0.0, 0.0};
+
+   init_timestep_();
 
    OptionsParser args(argc, argv);
    args.AddOption(&dim, "-dim", "--dimension", "Dimension of the problem.");
@@ -636,6 +645,7 @@ int main(int argc, char *argv[])
    //   }
    for (int ti = 1; !last_step; ti++)
    {
+      begin_timestep_();
       if (t + dt >= t_final)
       {
          dt = t_final - t;
@@ -795,6 +805,7 @@ int main(int argc, char *argv[])
          MFEM_VERIFY(dim==2 || dim==3, "check: dimension");
          Checks(dim, ti, e_norm, checks);
       }
+      end_timestep_();
    }
    MFEM_VERIFY(!check || checks == 2, "Check error!");
 
@@ -855,6 +866,7 @@ int main(int argc, char *argv[])
    delete ode_solver;
    delete pmesh;
 
+   exit_timestep_();
    return 0;
 }
 

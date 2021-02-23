@@ -109,7 +109,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 	cd $(<D); $(CCC) -c $(<F)
 
 laghos: $(OBJECT_FILES) $(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) $(MFEM_LINK_FLAGS) -o laghos $(OBJECT_FILES) $(LIBS)
+	$(MFEM_CXX) $(MFEM_LINK_FLAGS) -o laghos $(OBJECT_FILES) $(LIBS) ../../../utils/kernel_stats.o
 
 all:;@$(MAKE) -j $(NPROC) laghos
 
