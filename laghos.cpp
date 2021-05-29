@@ -65,10 +65,11 @@
 #include "laghos_solver.hpp"
 
 extern "C" {
-  void init_timestep_();
-  void begin_timestep_();
-  void end_timestep_();
-  void exit_timestep_();
+   void init_timestep_();
+   void begin_timestep_();
+   void end_timestep_();
+   void after_timestep_();
+   void exit_timestep_();
 }
 
 using std::cout;
@@ -807,6 +808,7 @@ int main(int argc, char *argv[])
       }
       end_timestep_();
    }
+   after_timestep_();
    MFEM_VERIFY(!check || checks == 2, "Check error!");
 
    switch (ode_solver_type)
